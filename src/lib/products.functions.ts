@@ -21,17 +21,26 @@ export const CATEGORIES = [
 ] as const;
 
 function publicClient() {
-  const url = process.env["SUPABASE_URL"]!;
-  const key = process.env["SUPABASE_PUBLISHABLE_KEY"]!;
+  // Use Vite env variables at build time or fall back to runtime env
+  const url = import.meta.env['VITE_SUPABASE_URL'] || import.meta.env['SUPABASE_URL'] || process.env['SUPABASE_URL'];
+  const key = import.meta.env['VITE_SUPABASE_PUBLISHABLE_KEY'] || import.meta.env['SUPABASE_PUBLISHABLE_KEY'] || process.env['SUPABASE_PUBLISHABLE_KEY'];
+  if (!url || !key) {
+    const missing = [];
+    if (!url) missing.push('SUPABASE_URL');
+    if (!key) missing.push('SUPABASE_PUBLISHABLE_KEY');
+    const message = `Missing Supabase environment variable(s): ${missing.join(', ')}`;
+    console.error(`[Supabase] ${message}`);
+    throw new Error(message);
+  }
   return createClient<Database>(url, key, {
     auth: { persistSession: false, autoRefreshToken: false },
     global: {
       fetch: (input, init) => {
         const headers = new Headers(init?.headers);
-        if (key.startsWith("sb_") && headers.get("Authorization") === `Bearer ${key}`) {
-          headers.delete("Authorization");
+        if (key.startsWith('sb_') && headers.get('Authorization') === `Bearer ${key}`) {
+          headers.delete('Authorization');
         }
-        headers.set("apikey", key);
+        headers.set('apikey', key);
         return fetch(input, { ...init, headers });
       },
     },
